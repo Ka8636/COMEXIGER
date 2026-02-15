@@ -135,7 +135,7 @@
         </div>
 
         <div class="modal-body">
-          <form action="{% url 'procesar_edicion_rendimiento' %}" method="post">
+          <form action="{% url 'procesar_edicion_rendimiento' %}" method="post" id="form_editar_rendimiento" novalidate>
             {% csrf_token %}
 
             <input type="hidden" name="id" id="edit_id">
@@ -144,7 +144,7 @@
             <input class="form-control" type="number" name="numero_mesa" id="edit_mesa" required><br>
 
             <label>Rendimiento</label>
-            <input class="form-control" type="number" name="rendimiento" id="edit_rendimiento" readonly><br>
+            <input class="form-control" type="number" name="rendimiento" id="edit_rendimiento" readonly disabled><br>
 
             <label>Inicio</label>
             <input class="form-control" type="datetime-local" name="hora_inicio" id="edit_inicio"><br>
@@ -178,6 +178,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
 <script>
   // =======================
   // SWEETALERT ELIMINAR
@@ -287,6 +288,36 @@
     // =======================
     // DATATABLE
     // =======================
+    const exportFormatBody = function (data) {
+      return $("<div>").html(data).text().trim().replace(/\u00a0/g, " ");
+    };
+
+    const normalizeEsNumberForExcel = function (value) {
+      let text = String(value ?? "").trim().replace(/\u00a0/g, "").replace(/\s+/g, "");
+      if (!text) return text;
+
+      // 1.234,56 -> 1234.56
+      if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(text)) {
+        return text.replace(/\./g, "").replace(",", ".");
+      }
+      // 14,16 -> 14.16
+      if (/^-?\d+,\d+$/.test(text)) {
+        return text.replace(",", ".");
+      }
+      // 1,234.56 -> 1234.56
+      if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) {
+        return text.replace(/,/g, "");
+      }
+      return text;
+    };
+
+    const exportFormatBodyExcel = function (data) {
+      const text = exportFormatBody(data);
+      return normalizeEsNumberForExcel(text);
+    };
+
+    const exportColumns = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12];
+
     table = $('#table_rendimiento').DataTable({
       order: [],
       ordering: false,
@@ -314,11 +345,39 @@
 
       dom: 'lBfrtip',
       buttons: [
-        { extend: 'copy',className: 'btn btn-secondary',text: '<i class="fa fa-copy"></i> Copiar' },
-        { extend: 'csv',className: 'btn btn-dark',   text: '<i class="fa fa-file-csv"></i> CSV' },
-        { extend: 'excel',className: 'btn btn-success', text: '<i class="fa fa-file-excel"></i> Excel' },
-        { extend: 'pdf',className: 'btn btn-warning',   text: '<i class="fa fa-file-pdf"></i> PDF' },
-        { extend: 'print',className: 'btn btn-info', text: '<i class="fa fa-print"></i> Imprimir' }
+        {
+          extend: 'copy',
+          className: 'btn btn-secondary',
+          text: '<i class="fa fa-copy"></i> Copiar',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'csvHtml5',
+          className: 'btn btn-dark',
+          text: '<i class="fa fa-file-csv"></i> CSV',
+          fieldSeparator: ';',
+          bom: true,
+          charset: 'utf-8',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'excelHtml5',
+          className: 'btn btn-success',
+          text: '<i class="fa fa-file-excel"></i> Excel',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBodyExcel } }
+        },
+        {
+          extend: 'pdf',
+          className: 'btn btn-warning',
+          text: '<i class="fa fa-file-pdf"></i> PDF',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        },
+        {
+          extend: 'print',
+          className: 'btn btn-info',
+          text: '<i class="fa fa-print"></i> Imprimir',
+          exportOptions: { columns: exportColumns, format: { body: exportFormatBody } }
+        }
       ],
 
       columnDefs: [
@@ -346,6 +405,51 @@
       $("#edit_final").val(btn.data("final") || "");
       $("#edit_bonches").val(btn.data("bonches") ?? 0);
       $("#edit_fecha").val(btn.data("fecha") || "");
+    });
+
+    $.validator.addMethod("numbersOnly", function(value, element) {
+      return this.optional(element) || /^\d+$/.test(value);
+    }, "Solo se permiten numeros.");
+
+    $.validator.addMethod("fechaFinalMayor", function(value, element) {
+      const inicio = $("#edit_inicio").val();
+      if (!inicio || !value) return true;
+      return new Date(value).getTime() >= new Date(inicio).getTime();
+    }, "La hora final no puede ser menor que la hora de inicio.");
+
+    $("#form_editar_rendimiento").validate({
+      ignore: [],
+      rules: {
+        numero_mesa: { required: true, numbersOnly: true, min: 1, maxlength: 10 },
+        fecha_entrada: { required: true },
+        bonches: { required: true, numbersOnly: true, min: 0, maxlength: 10 },
+        hora_inicio: { required: true },
+        hora_final: { required: true, fechaFinalMayor: true }
+      },
+      messages: {
+        numero_mesa: {
+          required: "Por favor ingrese el numero de mesa.",
+          numbersOnly: "Solo se permiten numeros.",
+          min: "La mesa debe ser mayor o igual a 1.",
+          maxlength: "Maximo 10 digitos."
+        },
+        fecha_entrada: { required: "La fecha de entrada es obligatoria." },
+        bonches: {
+          required: "Por favor ingrese los bonches.",
+          numbersOnly: "Solo se permiten numeros.",
+          min: "Bonches no puede ser menor a 0.",
+          maxlength: "Maximo 10 digitos."
+        },
+        hora_inicio: { required: "La hora de inicio es obligatoria." },
+        hora_final: {
+          required: "La hora final es obligatoria."
+        }
+      },
+      errorElement: "div",
+      errorClass: "invalid-feedback d-block",
+      highlight: function (element) { $(element).addClass("is-invalid"); },
+      unhighlight: function (element) { $(element).removeClass("is-invalid"); },
+      submitHandler: function(form) { form.submit(); }
     });
 
     // =======================

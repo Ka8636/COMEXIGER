@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
@@ -6,6 +7,17 @@ from django.views.decorators.http import require_POST
 from Aplicaciones.Disponibilidad.models import Disponibilidad
 from Aplicaciones.Usuario.web_decorators import web_admin_required
 from .models import Mesa, Usuario
+
+CARGOS_PERMITIDOS = {
+    "ADMIN",
+    "EMBONCHADOR/A",
+    "CLASIFICADOR/A",
+    "EMPADOR",
+    "EMPACADOR",
+    "CONTROL",
+}
+
+CARGOS_MESA_CERO = {"ADMIN", "EMPADOR", "EMPACADOR", "CONTROL"}
 
 
 @ensure_csrf_cookie
@@ -70,16 +82,32 @@ def nuevo_usuario(request):
 @require_POST
 def guardar_mesa(request):
     nombre = (request.POST.get("nombre") or "").strip()
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if not nombre:
+        if is_ajax:
+            return JsonResponse({"success": False, "message": "Ingrese el nombre de la mesa."}, status=400)
         messages.error(request, "Ingrese el nombre de la mesa.")
         return redirect("nuevo_usuario")
 
+    if not nombre.isdigit() or int(nombre) <= 0:
+        if is_ajax:
+            return JsonResponse({"success": False, "message": "La mesa debe ser un numero mayor a 0."}, status=400)
+        messages.error(request, "La mesa debe ser un numero mayor a 0.")
+        return redirect("nuevo_usuario")
+
     if Mesa.objects.filter(nombre__iexact=nombre).exists():
+        if is_ajax:
+            return JsonResponse({"success": False, "message": "Esa mesa ya existe."}, status=409)
         messages.warning(request, "Esa mesa ya existe.")
         return redirect("nuevo_usuario")
 
-    Mesa.objects.create(nombre=nombre)
+    mesa = Mesa.objects.create(nombre=nombre)
+    if is_ajax:
+        return JsonResponse(
+            {"success": True, "message": "Mesa agregada correctamente.", "mesa": {"id": mesa.id, "nombre": mesa.nombre}},
+            status=201
+        )
     messages.success(request, "Mesa agregada correctamente.")
     return redirect("nuevo_usuario")
 
@@ -87,12 +115,38 @@ def guardar_mesa(request):
 @web_admin_required
 @require_POST
 def guardar_usuario(request):
-    nombres = request.POST["nombres"]
-    apellidos = request.POST["apellidos"]
-    mesa = request.POST["mesa"]
-    cargo = request.POST["cargo"]
-    username = request.POST["username"]
-    password = request.POST["password"]
+    nombres = (request.POST.get("nombres") or "").strip()
+    apellidos = (request.POST.get("apellidos") or "").strip()
+    mesa = (request.POST.get("mesa") or "").strip()
+    cargo = (request.POST.get("cargo") or "").strip().upper()
+    username = (request.POST.get("username") or "").strip()
+    password = (request.POST.get("password") or "").strip()
+
+    if not nombres or not apellidos or not username or not password:
+        messages.error(request, "Todos los campos son obligatorios.")
+        return redirect("nuevo_usuario")
+
+    if cargo not in CARGOS_PERMITIDOS:
+        messages.error(request, "Cargo no permitido.")
+        return redirect("nuevo_usuario")
+
+    if Usuario.objects.filter(username__iexact=username).exists():
+        messages.error(request, "Ese usuario ya existe.")
+        return redirect("nuevo_usuario")
+
+    if len(password) < 6:
+        messages.error(request, "La contrasena debe tener al menos 6 caracteres.")
+        return redirect("nuevo_usuario")
+
+    if cargo in CARGOS_MESA_CERO:
+        mesa = "0"
+    else:
+        if not mesa.isdigit() or int(mesa) <= 0:
+            messages.error(request, "La mesa debe ser un numero mayor a 0.")
+            return redirect("nuevo_usuario")
+        if not Mesa.objects.filter(nombre=mesa).exists():
+            messages.error(request, "La mesa seleccionada no existe.")
+            return redirect("nuevo_usuario")
 
     u = Usuario(
         nombres=nombres,

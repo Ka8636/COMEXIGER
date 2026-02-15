@@ -442,24 +442,19 @@ $(function () {
     const url = $(this).attr('href');
     const nombre = $(this).data('nombre') || 'este usuario';
 
-    Swal.fire({
-      title: "¿Eliminar usuario?",
-      html: `<div class="text-center py-3">
-              <i class="fas fa-user-times fa-4x text-danger mb-4"></i>
-              <h4 class="fw-bold">${nombre}</h4>
-              <p class="text-muted mt-3">Esta acción no se puede deshacer</p>
-            </div>`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "<i class='fas fa-trash me-2'></i>Eliminar",
-      cancelButtonText: "<i class='fas fa-times me-2'></i>Cancelar",
-      confirmButtonColor: "#dc3545",
-      cancelButtonColor: "#6c757d",
-      reverseButtons: true,
-      customClass: {
-        confirmButton: 'btn btn-lg btn-danger',
-        cancelButton: 'btn btn-lg btn-secondary'
-      }
+    alertaConfirmar({
+      titulo: "Eliminar usuario?",
+      html: `
+        <div class="text-center py-3">
+          <i class="fas fa-user-times fa-4x text-danger mb-4"></i>
+          <h4 class="fw-bold">${nombre}</h4>
+          <p class="text-muted mt-3">Esta accion no se puede deshacer</p>
+        </div>
+      `,
+      confirmText: "<i class='fas fa-trash me-2'></i>Eliminar",
+      cancelText: "<i class='fas fa-times me-2'></i>Cancelar",
+      confirmColor: "#dc3545",
+      icon: "warning"
     }).then((result) => {
       if (result.isConfirmed) window.location.href = url;
     });
@@ -717,3 +712,4 @@ $(function () {
 </style>
 
 {% endblock %}
+

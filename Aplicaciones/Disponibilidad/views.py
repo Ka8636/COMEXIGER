@@ -86,7 +86,18 @@ def procesar_edicion_disponibilidad(request):
     if request.method == "POST":
         try:
             _id = (request.POST.get("id") or "").strip()
-            stock = int(request.POST.get("stock") or 0)
+            stock_raw = (request.POST.get("stock") or "").strip()
+            if stock_raw == "":
+                raise ValueError("El stock es obligatorio.")
+
+            try:
+                stock = int(stock_raw)
+            except (TypeError, ValueError):
+                raise ValueError("El stock debe ser un numero entero.")
+
+            if stock < 0:
+                raise ValueError("El stock no puede ser menor a 0.")
+
             if _id:
                 d = Disponibilidad.objects.get(id=_id)  # edita
                 d.stock = stock
@@ -513,10 +524,15 @@ class VariedadViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        tiene = Disponibilidad.objects.filter(variedad__iexact=instance.nombre).exists()
-        if tiene:
+        # Permite borrar la variedad si no existe stock activo (> 0).
+        # Si todos los registros historicos estan en 0, se puede eliminar.
+        tiene_stock_activo = Disponibilidad.objects.filter(
+            variedad__iexact=instance.nombre,
+            stock__gt=0
+        ).exists()
+        if tiene_stock_activo:
             return Response(
-                {"detail": "No puedes borrar esta variedad porque esta siendo usada para almacenamiento ."},
+                {"detail": "No puedes borrar esta variedad porque tiene stock mayor a 0."},
                 status=status.HTTP_409_CONFLICT
             )
         return super().destroy(request, *args, **kwargs)

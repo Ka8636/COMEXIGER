@@ -2,25 +2,59 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Inicio de sesión</title>
+    <title>Inicio de sesi&oacute;n</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem("comexiger-theme") === "dark") {
+                    document.documentElement.classList.add("dark-mode");
+                }
+            } catch (e) {}
+        })();
+    </script>
     <style>
+        :root {
+            --bg-color: #f2f3f7;
+            --accent-color: #8b8700;
+            --text-color: #1d1d1d;
+            --card-color: #ffffff;
+            --input-bg: #ffffff;
+            --input-border: #d8d8d8;
+            --primary-btn: #567d23;
+            --primary-btn-hover: #46611a;
+            --shadow: 0 0 20px rgba(0, 0, 0, 0.18);
+        }
+
+        html.dark-mode {
+            --bg-color: #0F0B0B;
+            --accent-color: #D1D02E;
+            --text-color: #FFFFFF;
+            --card-color: #0F0B0B;
+            --input-bg: #1a1717;
+            --input-border: #D1D02E;
+            --primary-btn: #D1D02E;
+            --primary-btn-hover: #e7e658;
+            --shadow: 0 0 26px rgba(209, 208, 46, 0.28);
+        }
+
         body {
             font-family: Arial, sans-serif;
-            background-color: #1c1c1c; 
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
-        /* Triángulos decorativos */
         .triangle-left {
             width: 0;
             height: 0;
-            border-left: 150px solid #d1d02e;
+            border-left: 150px solid var(--accent-color);
             border-top: 150px solid transparent;
             position: absolute;
             top: 0;
@@ -30,7 +64,7 @@
         .triangle-right {
             width: 0;
             height: 0;
-            border-right: 150px solid #d1d02e;
+            border-right: 150px solid var(--accent-color);
             border-bottom: 150px solid transparent;
             position: absolute;
             bottom: 0;
@@ -38,14 +72,16 @@
         }
 
         .container {
-            background-color: #0f0b0b; 
+            background-color: var(--card-color);
             padding: 50px 40px;
             border-radius: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(209, 208, 46, 0.32);
             text-align: center;
             width: 400px;
             position: relative;
             z-index: 1;
+            transition: background-color 0.25s ease, box-shadow 0.25s ease;
         }
 
         .logo {
@@ -54,7 +90,7 @@
         }
 
         h2 {
-            color: #d1d02e;
+            color: var(--accent-color);
             margin-bottom: 30px;
         }
 
@@ -62,7 +98,7 @@
             display: block;
             text-align: left;
             font-size: 16px;
-            color: #d1d02e;
+            color: var(--accent-color);
             margin-bottom: 5px;
         }
 
@@ -72,8 +108,11 @@
             padding: 10px;
             margin-bottom: 20px;
             border-radius: 5px;
-            border: none;
+            border: 1px solid var(--input-border);
             font-size: 16px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            box-sizing: border-box;
         }
 
         .password-wrap {
@@ -84,7 +123,7 @@
         .password-wrap input[type="password"],
         .password-wrap input[type="text"] {
             margin-bottom: 0;
-            padding-right: 42px;
+            padding-right: 66px;
             box-sizing: border-box;
         }
 
@@ -96,8 +135,9 @@
             border: none;
             background: transparent;
             cursor: pointer;
-            color: #555;
-            font-size: 18px;
+            color: var(--text-color);
+            font-size: 12px;
+            font-weight: 700;
             line-height: 1;
             padding: 0;
         }
@@ -108,13 +148,15 @@
             font-size: 18px;
             border: none;
             border-radius: 5px;
-            background-color: #567d23; 
-            color: white;
+            background-color: var(--primary-btn);
+            color: #0F0B0B;
+            font-weight: 700;
             cursor: pointer;
+            transition: background-color 0.2s ease;
         }
 
         .btn:hover {
-            background-color: #46611a;
+            background-color: var(--primary-btn-hover);
         }
     </style>
 </head>
@@ -125,17 +167,17 @@
     <div class="container">
         <img src="/static/img/logo.jpg" alt="Logo" class="logo">
 
-        <h2>INICIO DE SESIÓN</h2>
+        <h2>INICIO DE SESI&Oacute;N</h2>
 
         <form method="POST" action="{% url 'iniciose' %}">
             {% csrf_token %}
             <label for="usuario">USUARIO:</label>
             <input type="text" id="usuario" name="usuario" required>
 
-            <label for="contrasena">CONTRASEÑA:</label>
+            <label for="contrasena">CONTRASE&Ntilde;A:</label>
             <div class="password-wrap">
                 <input type="password" id="contrasena" name="contrasena" required>
-                <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contraseña" title="Mostrar contraseña">👁</button>
+                <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contrasena" title="Mostrar contrasena">VER</button>
             </div>
 
             <button type="submit" class="btn">CONTINUAR</button>
@@ -145,18 +187,17 @@
     {% if messages %}
     {% for mensaje in messages %}
     <script>
-        // Determinar tipo de mensaje
         let tipoIcono = "info";
-        let titulo = "Información";
+        let titulo = "Informacion";
         let colorBoton = "#d1d02e";
-        
+
         {% if mensaje.tags == 'error' %}
             tipoIcono = "error";
             titulo = "Error";
             colorBoton = "#e74c3c";
         {% elif mensaje.tags == 'success' %}
             tipoIcono = "success";
-            titulo = "Éxito";
+            titulo = "Exito";
             colorBoton = "#567d23";
         {% elif mensaje.tags == 'warning' %}
             tipoIcono = "warning";
@@ -164,17 +205,19 @@
             colorBoton = "#f39c12";
         {% endif %}
 
+        const oscuro = document.documentElement.classList.contains("dark-mode");
         Swal.fire({
             title: titulo,
             text: "{{ mensaje }}",
             icon: tipoIcono,
-            background: "#1c1c1c",
-            color: "#ffffff",
+            background: oscuro ? "#0F0B0B" : "#FFFFFF",
+            color: oscuro ? "#FFFFFF" : "#111111",
             confirmButtonColor: colorBoton
         });
     </script>
     {% endfor %}
-{% endif %}
+    {% endif %}
+
     <script>
         (function () {
             const input = document.getElementById("contrasena");
@@ -184,11 +227,12 @@
             btn.addEventListener("click", function () {
                 const mostrando = input.type === "text";
                 input.type = mostrando ? "password" : "text";
-                btn.textContent = mostrando ? "👁" : "🙈";
-                btn.setAttribute("aria-label", mostrando ? "Mostrar contraseña" : "Ocultar contraseña");
-                btn.setAttribute("title", mostrando ? "Mostrar contraseña" : "Ocultar contraseña");
+                btn.textContent = mostrando ? "VER" : "OCULTAR";
+                btn.setAttribute("aria-label", mostrando ? "Mostrar contrasena" : "Ocultar contrasena");
+                btn.setAttribute("title", mostrando ? "Mostrar contrasena" : "Ocultar contrasena");
             });
         })();
     </script>
 </body>
 </html>
+

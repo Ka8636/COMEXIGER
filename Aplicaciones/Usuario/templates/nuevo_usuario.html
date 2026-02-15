@@ -6,7 +6,7 @@
 <style>
   /* ====== TUS COLORES ====== */
   body{
-    background: #ECF0F5 !important;
+    background: var(--bg) !important;
   }
   :root{
     --sidebar: #222D32;
@@ -20,6 +20,20 @@
     --danger: #e74c3c;
     --success: #27ae60;
     --warning: #f39c12;
+  }
+
+  body.dark-mode{
+    --sidebar: #0F0B0B;
+    --bg: #0F0B0B;
+    --card: #0F0B0B;
+    --border: #D1D02E;
+    --text: #FFFFFF;
+    --muted: #d5d5d5;
+    --accent: #D1D02E;
+    --accent2: #E7E658;
+    --danger: #ff6b6b;
+    --success: #D1D02E;
+    --warning: #D1D02E;
   }
 
   /* ====== TARJETA PRINCIPAL ====== */
@@ -51,7 +65,7 @@
   }
 
   .soft-hr{
-    border-top: 2px solid rgba(34,45,50,.12);
+    border-top: 2px solid var(--border);
     opacity: 1;
   }
 
@@ -67,8 +81,13 @@
     border: 2px solid var(--border);
     padding: 12px 14px;
     transition: all .2s ease;
-    background: #fff;
+    background: var(--card);
     color: var(--text);
+  }
+
+  .form-control::placeholder{
+    color: var(--muted);
+    opacity: 1;
   }
 
   .form-control:focus, .form-select:focus{
@@ -79,7 +98,7 @@
   .input-group-text{
     border-radius: 12px 0 0 12px;
     border: 2px solid var(--border);
-    background: #f8fafc;
+    background: var(--card);
     color: var(--sidebar);
     font-weight: 700;
   }
@@ -154,7 +173,7 @@
     border-radius: 16px;
     border: 0;
     box-shadow: 0 18px 50px rgba(0,0,0,.18);
-    background: #fff;
+    background: var(--card);
   }
   .modal-header{
     background: linear-gradient(135deg, var(--sidebar) 0%, #1b2428 100%);
@@ -166,10 +185,24 @@
     padding: 20px;
   }
   .modal-footer{
-    border-top: 1px solid rgba(34,45,50,.10);
+    border-top: 1px solid var(--border);
     padding: 16px 20px;
-    background: #fafafa;
+    background: var(--card);
     border-radius: 0 0 16px 16px;
+  }
+
+  body.dark-mode .input-group-text i{
+    color: #FFFFFF;
+  }
+
+  body.dark-mode .btn-outline-info{
+    color: #D1D02E;
+    border-color: #D1D02E;
+  }
+
+  body.dark-mode .btn-outline-info:hover{
+    color: #0F0B0B;
+    background: #D1D02E;
   }
 </style>
 {% endblock %}
@@ -235,13 +268,23 @@
                 {% endfor %}
               </select>
             </div>
+            <small id="mesaAutoHint" class="help-text d-block mt-2 d-none">
+              Para este cargo se asigna automaticamente la mesa 0 (ADMIN/EMPADOR/CONTROL).
+            </small>
           </div>
 
           <div class="col-md-6">
             <label for="cargo" class="form-label">Cargo</label>
             <div class="input-group">
               <span class="input-group-text"><i class="fa fa-briefcase"></i></span>
-              <input class="form-control" type="text" name="cargo" id="cargo" placeholder="Ej: Clasificadora/o">
+              <select class="form-select" name="cargo" id="cargo">
+                <option value="">-- Seleccionar cargo --</option>
+                <option value="ADMIN">ADMIN</option>
+                <option value="EMBONCHADOR/A">EMBONCHADOR/A</option>
+                <option value="CLASIFICADOR/A">CLASIFICADOR/A</option>
+                <option value="EMPADOR">EMPADOR</option>
+                <option value="CONTROL">CONTROL</option>
+              </select>
             </div>
           </div>
 
@@ -356,6 +399,43 @@ $(function () {
     return this.optional(element) || /^\d+$/.test(value);
   }, "Solo se permiten números.");
 
+  const CARGOS_PERMITIDOS = ["ADMIN", "EMBONCHADOR/A", "CLASIFICADOR/A", "EMPADOR", "CONTROL"];
+  const CARGOS_MESA_CERO = new Set(["ADMIN", "EMPADOR", "EMPACADOR", "CONTROL"]);
+
+  function asegurarMesaCeroOption() {
+    const $mesa = $("#mesa");
+    if ($mesa.find("option[value='0']").length === 0) {
+      $mesa.prepend(new Option("0", "0", false, false));
+    }
+  }
+
+  function aplicarReglaCargoMesa() {
+    const cargo = ($("#cargo").val() || "").trim().toUpperCase();
+    const $mesa = $("#mesa");
+    const $hint = $("#mesaAutoHint");
+
+    if (CARGOS_MESA_CERO.has(cargo)) {
+      asegurarMesaCeroOption();
+      $mesa.val("0").prop("disabled", true);
+      $hint.removeClass("d-none");
+    } else {
+      $mesa.prop("disabled", false);
+      $hint.addClass("d-none");
+      if ($mesa.val() === "0") $mesa.val("");
+    }
+  }
+
+  $.validator.addMethod("cargoPermitido", function(value, element) {
+    return this.optional(element) || CARGOS_PERMITIDOS.includes(String(value || "").trim().toUpperCase());
+  }, "Seleccione un cargo valido.");
+
+  $.validator.addMethod("mesaSegunCargo", function(value, element) {
+    const cargo = ($("#cargo").val() || "").trim().toUpperCase();
+    const mesa = String(value || "").trim();
+    if (CARGOS_MESA_CERO.has(cargo)) return mesa === "0";
+    return /^\d+$/.test(mesa) && parseInt(mesa, 10) > 0;
+  }, "Mesa invalida para el cargo seleccionado.");
+
   // Bloqueo en tiempo real modal
   $('#nombre_mesa').on('input', function () {
     this.value = this.value.replace(/[^0-9]/g, '');
@@ -377,8 +457,8 @@ $(function () {
     rules: {
       nombres: { required: true, lettersOnly: true, minlength: 3, maxlength: 100 },
       apellidos: { required: true, lettersOnly: true, minlength: 3, maxlength: 100 },
-      mesa: { required: true },
-      cargo: { required: true, maxlength: 100 },
+      mesa: { required: true, mesaSegunCargo: true },
+      cargo: { required: true, cargoPermitido: true },
       username: { required: true, minlength: 3, maxlength: 150, usernameValid: true },
       password: { required: true, minlength: 6, maxlength: 128 },
       password2: { required: true, equalTo: "#password" }
@@ -396,10 +476,13 @@ $(function () {
         maxlength: "No puede superar 100 caracteres.",
         lettersOnly: "Solo se permiten letras."
       },
-      mesa: { required: "Por favor seleccione la mesa." },
+      mesa: {
+        required: "Por favor seleccione la mesa.",
+        mesaSegunCargo: "La mesa debe ser mayor a 0, excepto ADMIN/EMPADOR/CONTROL (mesa 0)."
+      },
       cargo: {
         required: "Por favor ingrese el cargo.",
-        maxlength: "No puede superar 100 caracteres."
+        cargoPermitido: "Seleccione un cargo valido."
       },
       username: {
         required: "Por favor ingrese un usuario.",
@@ -425,6 +508,14 @@ $(function () {
   });
 
   // ====== VALIDACIÓN MODAL MESA ======
+  $("#cargo").on("change", function () {
+    aplicarReglaCargoMesa();
+    $("#cargo").valid();
+    $("#mesa").valid();
+  });
+
+  aplicarReglaCargoMesa();
+
   $('#form_mesa').validate({
     ignore: [],
     rules: {
@@ -442,7 +533,69 @@ $(function () {
     errorPlacement: placeBootstrapError,
     highlight: function (element) { $(element).addClass('is-invalid'); },
     unhighlight: function (element) { $(element).removeClass('is-invalid'); },
-    submitHandler: function(form) { form.submit(); }
+    submitHandler: function(form) {
+      const $form = $(form);
+      const $submitBtn = $form.find("button[type='submit']");
+      const formData = new FormData(form);
+      const mesaInput = (formData.get("nombre") || "").toString().trim();
+      const csrfToken = formData.get("csrfmiddlewaretoken");
+
+      $submitBtn.prop("disabled", true);
+
+      fetch(form.action, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": csrfToken
+        },
+        body: formData
+      })
+      .then(async (resp) => {
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+          throw { status: resp.status, data };
+        }
+        return data;
+      })
+      .then((data) => {
+        const mesaNombre = data?.mesa?.nombre || mesaInput;
+        const $selectMesa = $("#mesa");
+        const yaExiste = $selectMesa.find(`option[value='${mesaNombre}']`).length > 0;
+        const cargoActual = ($("#cargo").val() || "").trim().toUpperCase();
+
+        if (!yaExiste) {
+          $selectMesa.append(new Option(mesaNombre, mesaNombre, false, false));
+        }
+
+        if (!CARGOS_MESA_CERO.has(cargoActual)) {
+          $selectMesa.val(mesaNombre);
+        }
+
+        const modalEl = document.getElementById("modalMesa");
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+
+        aplicarReglaCargoMesa();
+        $("#nombre_mesa").val("").removeClass("is-invalid");
+        $("#form_mesa").validate().resetForm();
+
+        alertaExito(data.message || "Mesa agregada correctamente.");
+      })
+      .catch((err) => {
+        const msg =
+          err?.data?.message ||
+          err?.data?.detail ||
+          (err?.status === 409
+            ? "Esa mesa ya existe."
+            : "No se pudo guardar la mesa.");
+        alertaInfo(msg);
+      })
+      .finally(() => {
+        $submitBtn.prop("disabled", false);
+      });
+
+      return false;
+    }
   });
 
   // Limpiar modal al cerrar

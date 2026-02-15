@@ -223,7 +223,15 @@
         padding: 6px 8px;
         background: #fff;
     }
-    .cell-edit i { font-size: 14px; opacity: .7; }
+    .cell-edit i { font-size: 14px; opacity: 1; color: #0f0b0b; }
+
+    body.dark-mode .cell-edit {
+        background: #1b1717;
+        border-color: #d1d02e;
+    }
+    body.dark-mode .cell-edit i {
+        color: #d1d02e;
+    }
 
     .modal-content { border-radius: 18px; }
     .modal-header { border-top-left-radius: 18px; border-top-right-radius: 18px; }
@@ -795,6 +803,34 @@ document.addEventListener("DOMContentLoaded", () => {
   // carga inicial (secuencial)
   cargarVariedadesBD().then(() => cargarMatriz());
 
+  const formEditar = document.getElementById("formEditarCelda");
+  const inputStock = document.getElementById("edit_stock");
+  if (formEditar && inputStock) {
+    formEditar.addEventListener("submit", function (e) {
+      const raw = String(inputStock.value ?? "").trim();
+      if (raw === "") {
+        e.preventDefault();
+        alertaInfo("El stock es obligatorio.");
+        inputStock.focus();
+        return;
+      }
+
+      const n = Number(raw);
+      if (!Number.isFinite(n) || !Number.isInteger(n)) {
+        e.preventDefault();
+        alertaInfo("El stock debe ser un numero entero.");
+        inputStock.focus();
+        return;
+      }
+
+      if (n < 0) {
+        e.preventDefault();
+        alertaInfo("El stock no puede ser menor a 0.");
+        inputStock.focus();
+      }
+    });
+  }
+
   // refrescar
   document.getElementById("btnRefrescar").addEventListener("click", () => {
     recargarTodoLimpio();
@@ -879,7 +915,7 @@ document.addEventListener("DOMContentLoaded", () => {
   btnUp.addEventListener("click", () => {
     const f = inputExcel.files[0];
     if (!f) {
-      Swal.fire("Advertencia","Selecciona un archivo Excel.","warning");
+      alertaInfo("Selecciona un archivo Excel.");
       return;
     }
     subirExcelVariedades();

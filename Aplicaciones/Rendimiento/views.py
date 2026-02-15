@@ -107,37 +107,45 @@ def procesar_edicion_rendimiento(request):
         try:
             rendimiento = Rendimiento.objects.get(id=request.POST["id"])
 
-            rendimiento.numero_mesa = request.POST["numero_mesa"]
-            rendimiento.bonches = int(request.POST.get("bonches", 0))
-            if request.POST.get("rendimiento"):
-                rendimiento.rendimiento = int(request.POST.get("rendimiento"))
+            numero_mesa = (request.POST.get("numero_mesa") or "").strip()
+            bonches_raw = (request.POST.get("bonches") or "").strip()
+            fecha_entrada_raw = (request.POST.get("fecha_entrada") or "").strip()
+            hora_inicio_raw = (request.POST.get("hora_inicio") or "").strip()
+            hora_final_raw = (request.POST.get("hora_final") or "").strip()
 
-            if request.POST.get("fecha_entrada"):
-                try:
-                    dt = datetime.strptime(request.POST["fecha_entrada"], "%Y-%m-%dT%H:%M")
-                    rendimiento.fecha_entrada = timezone.make_aware(
-                        dt, timezone.get_current_timezone()
-                    )
-                except Exception:
-                    pass
+            if not numero_mesa.isdigit() or int(numero_mesa) < 1:
+                raise ValueError("Numero de mesa invalido.")
 
-            if request.POST.get("hora_inicio"):
-                try:
-                    dt = datetime.strptime(request.POST["hora_inicio"], "%Y-%m-%dT%H:%M")
-                    rendimiento.hora_inicio = timezone.make_aware(
-                        dt, timezone.get_current_timezone()
-                    )
-                except Exception:
-                    pass
+            if not bonches_raw.isdigit() or int(bonches_raw) < 0:
+                raise ValueError("Bonches invalido.")
 
-            if request.POST.get("hora_final"):
-                try:
-                    dt = datetime.strptime(request.POST["hora_final"], "%Y-%m-%dT%H:%M")
-                    rendimiento.hora_final = timezone.make_aware(
-                        dt, timezone.get_current_timezone()
-                    )
-                except Exception:
-                    pass
+            if not fecha_entrada_raw:
+                raise ValueError("La fecha de entrada es obligatoria.")
+            if not hora_inicio_raw:
+                raise ValueError("La hora de inicio es obligatoria.")
+            if not hora_final_raw:
+                raise ValueError("La hora final es obligatoria.")
+
+            try:
+                fecha_entrada_dt = datetime.strptime(fecha_entrada_raw, "%Y-%m-%dT%H:%M")
+                hora_inicio_dt = datetime.strptime(hora_inicio_raw, "%Y-%m-%dT%H:%M")
+                hora_final_dt = datetime.strptime(hora_final_raw, "%Y-%m-%dT%H:%M")
+            except Exception:
+                raise ValueError("Formato de fecha u hora invalido.")
+
+            fecha_entrada_aware = timezone.make_aware(fecha_entrada_dt, timezone.get_current_timezone())
+            hora_inicio_aware = timezone.make_aware(hora_inicio_dt, timezone.get_current_timezone())
+            hora_final_aware = timezone.make_aware(hora_final_dt, timezone.get_current_timezone())
+
+            if hora_final_aware < hora_inicio_aware:
+                raise ValueError("La hora final no puede ser menor que la hora de inicio.")
+
+            # Campo rendimiento NO editable desde esta vista.
+            rendimiento.numero_mesa = numero_mesa
+            rendimiento.bonches = int(bonches_raw)
+            rendimiento.fecha_entrada = fecha_entrada_aware
+            rendimiento.hora_inicio = hora_inicio_aware
+            rendimiento.hora_final = hora_final_aware
 
             rendimiento.recalcular()
             rendimiento.save()
