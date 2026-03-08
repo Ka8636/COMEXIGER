@@ -12,84 +12,104 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+
 try:
     import dj_database_url
 except ImportError:
     dj_database_url = None
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project like this: BASE_DIR / "subdir".
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+def env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=""):
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-6_n66h@dj*n-dahia$9%v8%hz*mh*xe=qa@2qln_e%@$p82$20'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-local-dev-key")
 
+DEBUG = env_bool("DEBUG", True)
 
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
+if DEBUG:
+    ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*")
+else:
+    ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ".onrender.com")
 
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'corsheaders',
-    'rest_framework',   
-    'channels', 
-    'Aplicaciones.Disponibilidad.apps.DisponibilidadConfig',
-    'Aplicaciones.Usuario',
-    'Aplicaciones.Rendimiento',
-]
-ASGI_APPLICATION = 'COMEXIGER.asgi.application'
-# Para pruebas locales (in-memory):
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
-MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",
+    "rest_framework",
+    "channels",
+    "Aplicaciones.Disponibilidad.apps.DisponibilidadConfig",
+    "Aplicaciones.Usuario",
+    "Aplicaciones.Rendimiento",
 ]
 
-ROOT_URLCONF = 'COMEXIGER.urls'
+ASGI_APPLICATION = "COMEXIGER.asgi.application"
+
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+            },
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "COMEXIGER.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'Aplicaciones','templates'),],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "Aplicaciones", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'COMEXIGER.wsgi.application'
+WSGI_APPLICATION = "COMEXIGER.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_SSL_REQUIRE = env_bool("DATABASE_SSL_REQUIRE", not DEBUG)
 
 if DATABASE_URL:
     if dj_database_url is None:
@@ -99,7 +119,7 @@ if DATABASE_URL:
         "default": dj_database_url.parse(
             DATABASE_URL,
             conn_max_age=600,
-            ssl_require=os.getenv("DATABASE_SSL_REQUIRE", "true").lower() == "true",
+            ssl_require=DATABASE_SSL_REQUIRE,
         )
     }
 else:
@@ -113,70 +133,76 @@ else:
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'es-ec'
-
-TIME_ZONE = 'America/Guayaquil'
-
+LANGUAGE_CODE = "es-ec"
+TIME_ZONE = "America/Guayaquil"
 USE_I18N = True
-
 USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-# ==========================
-# STATIC FILES
-# ==========================
 STATIC_URL = "/static/"
-
-# Donde están tus estáticos en desarrollo
 STATICFILES_DIRS = [
     BASE_DIR / "COMEXIGER" / "static",
 ]
-
-# Donde se colectan para producción
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS / CSRF
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL_ORIGINS", DEBUG)
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
+if CORS_ALLOWED_ORIGINS:
+    CORS_ALLOW_ALL_ORIGINS = False
+
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+if not CSRF_TRUSTED_ORIGINS and not DEBUG:
+    CSRF_TRUSTED_ORIGINS = ["https://*.onrender.com"]
+
+
+# Production security behind Render proxy
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", True)
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
+    SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)
+    CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", True)
+
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework.renderers.JSONRenderer",
     ),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "Aplicaciones.Usuario.authentication.WebSessionAuthentication",   
-        "Aplicaciones.Usuario.authentication.UsuarioJWTAuthentication",  
+        "Aplicaciones.Usuario.authentication.WebSessionAuthentication",
+        "Aplicaciones.Usuario.authentication.UsuarioJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
 }
-
-

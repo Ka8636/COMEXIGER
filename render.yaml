@@ -1,0 +1,22 @@
+﻿services:
+  - type: web
+    name: comexiger-web
+    runtime: python
+    plan: starter
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "daphne -b 0.0.0.0 -p $PORT COMEXIGER.asgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_SSL_REQUIRE
+        value: "true"
+      - key: SERVE_STATIC
+        value: "true"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://*.onrender.com"

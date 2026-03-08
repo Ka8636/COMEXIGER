@@ -11,6 +11,7 @@ env/
 # Local env files
 .env
 .env.*
+!.env.example
 
 # Databases and local artifacts
 *.sqlite3

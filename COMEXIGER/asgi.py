@@ -15,7 +15,8 @@ import Aplicaciones.Rendimiento.routing
 import Aplicaciones.Disponibilidad.routing
 
 
-if settings.DEBUG:
+serve_static = os.getenv("SERVE_STATIC", "true").strip().lower() in {"1", "true", "yes", "on"}
+if settings.DEBUG or serve_static:
     django_asgi_app = ASGIStaticFilesHandler(django_asgi_app)
 
 application = ProtocolTypeRouter({
