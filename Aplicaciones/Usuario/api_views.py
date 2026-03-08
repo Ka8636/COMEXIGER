@@ -9,6 +9,17 @@ from .models import Usuario, Mesa
 from .jwt_utils import crear_access_token, crear_refresh_token
 from Aplicaciones.Usuario.jwt_decorators import jwt_required
 
+CARGOS_PERMITIDOS = {
+    "ADMIN",
+    "EMBONCHADOR/A",
+    "CLASIFICADOR/A",
+    "EMPACADOR",
+    "CONTROL",
+}
+CARGOS_MESA_CERO = {"ADMIN", "EMPADOR", "EMPACADOR", "CONTROL"}
+MAX_ADMINISTRADORES = 2
+
+
 @csrf_exempt
 def registrar_usuario_api(request):
     """
@@ -33,11 +44,27 @@ def registrar_usuario_api(request):
         if Usuario.objects.filter(username__iexact=username).exists():
             return JsonResponse({"success": False, "error": f"El usuario '{username}' ya existe"}, status=400)
 
+        cargo = (data.get("cargo") or "").strip().upper()
+        if cargo not in CARGOS_PERMITIDOS:
+            return JsonResponse({"success": False, "error": "Cargo no permitido"}, status=400)
+
+        if cargo == "ADMIN" and Usuario.objects.filter(cargo__iexact="ADMIN").count() >= MAX_ADMINISTRADORES:
+            return JsonResponse({"success": False, "error": "Solo se permiten hasta 2 administradores"}, status=400)
+
+        mesa = (data.get("mesa") or "").strip()
+        if cargo in CARGOS_MESA_CERO:
+            mesa = "0"
+        else:
+            if not mesa.isdigit() or int(mesa) <= 0:
+                return JsonResponse({"success": False, "error": "La mesa debe ser un numero mayor a 0"}, status=400)
+            if not Mesa.objects.filter(nombre=mesa).exists():
+                return JsonResponse({"success": False, "error": "La mesa seleccionada no existe"}, status=400)
+
         usuario = Usuario(
             nombres=data["nombres"].strip(),
             apellidos=data["apellidos"].strip(),
-            mesa=data["mesa"].strip(),
-            cargo=data["cargo"].strip(),
+            mesa=mesa,
+            cargo=cargo,
             username=username,
         )
         usuario.password = make_password(data["password"].strip())

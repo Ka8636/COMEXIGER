@@ -32,6 +32,16 @@
       </div>
 
       <div class="col-md-3">
+        <label class="form-label fw-bold">Mesa</label>
+        <select id="filtroMesa" class="form-select">
+          <option value="">-- Todas --</option>
+          {% for mesa in mesas_disponibles %}
+          <option value="{{ mesa }}">{{ mesa }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
         <label class="form-label fw-bold">Desde</label>
         <input type="date" id="fechaDesde" class="form-control">
       </div>
@@ -515,6 +525,7 @@
       let ordenar = document.getElementById("ordenarPor").value;
       let reciente = document.getElementById("ordenReciente").value;
       let fecha = document.getElementById("fechaExacta").value;
+      let mesa = (document.getElementById("filtroMesa").value || "").trim();
       let desde = document.getElementById("fechaDesde").value;
       let hasta = document.getElementById("fechaHasta").value;
 
@@ -531,6 +542,7 @@
       if (ordenar) url += `ordenar=${encodeURIComponent(ordenar)}&`;
       if (reciente) url += `reciente=${encodeURIComponent(reciente)}&`;
       if (fecha) url += `fecha=${encodeURIComponent(fecha)}&`;
+      if (mesa) url += `mesa=${encodeURIComponent(mesa)}&`;
       if (!fecha && desde) url += `desde=${encodeURIComponent(desde)}&`;
       if (!fecha && hasta) url += `hasta=${encodeURIComponent(hasta)}&`;
 
@@ -571,6 +583,7 @@
       document.getElementById("ordenarPor").value = "";
       document.getElementById("ordenReciente").value = "";
       document.getElementById("fechaExacta").value = "";
+      document.getElementById("filtroMesa").value = "";
       document.getElementById("fechaDesde").value = "";
       document.getElementById("fechaHasta").value = "";
 

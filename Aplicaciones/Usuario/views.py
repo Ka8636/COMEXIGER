@@ -8,16 +8,22 @@ from Aplicaciones.Disponibilidad.models import Disponibilidad
 from Aplicaciones.Usuario.web_decorators import web_admin_required
 from .models import Mesa, Usuario
 
+MAX_ADMINISTRADORES = 2
+
 CARGOS_PERMITIDOS = {
     "ADMIN",
     "EMBONCHADOR/A",
     "CLASIFICADOR/A",
-    "EMPADOR",
     "EMPACADOR",
     "CONTROL",
 }
 
+# Se mantiene EMPADOR por compatibilidad con registros anteriores.
 CARGOS_MESA_CERO = {"ADMIN", "EMPADOR", "EMPACADOR", "CONTROL"}
+
+
+def _conteo_admins():
+    return Usuario.objects.filter(cargo__iexact="ADMIN").count()
 
 
 @ensure_csrf_cookie
@@ -67,7 +73,7 @@ def dispo(request):
 
 @web_admin_required
 def inicios(request):
-    listado_usuarios = Usuario.objects.all()
+    listado_usuarios = Usuario.objects.exclude(cargo__iexact="ADMIN")
     mesas = Mesa.objects.all().order_by("nombre")
     return render(request, "usuariore.html", {"usuario": listado_usuarios, "mesas": mesas})
 
@@ -75,7 +81,15 @@ def inicios(request):
 @web_admin_required
 def nuevo_usuario(request):
     mesas = Mesa.objects.all().order_by("nombre")
-    return render(request, "nuevo_usuario.html", {"mesas": mesas})
+    return render(
+        request,
+        "nuevo_usuario.html",
+        {
+            "mesas": mesas,
+            "admin_count": _conteo_admins(),
+            "max_administradores": MAX_ADMINISTRADORES,
+        },
+    )
 
 
 @web_admin_required
@@ -138,6 +152,10 @@ def guardar_usuario(request):
         messages.error(request, "La contrasena debe tener al menos 6 caracteres.")
         return redirect("nuevo_usuario")
 
+    if cargo == "ADMIN" and _conteo_admins() >= MAX_ADMINISTRADORES:
+        messages.error(request, "Solo se permiten hasta 2 administradores.")
+        return redirect("nuevo_usuario")
+
     if cargo in CARGOS_MESA_CERO:
         mesa = "0"
     else:
@@ -182,8 +200,33 @@ def procesar_edicion_usuario(request):
 
         usuario.nombres = (request.POST.get("nombres") or "").strip()
         usuario.apellidos = (request.POST.get("apellidos") or "").strip()
-        usuario.mesa = (request.POST.get("mesa") or "").strip()
-        usuario.cargo = (request.POST.get("cargo") or "").strip()
+        nuevo_cargo = (request.POST.get("cargo") or "").strip().upper()
+        mesa_recibida = (request.POST.get("mesa") or "").strip()
+
+        if nuevo_cargo not in CARGOS_PERMITIDOS:
+            messages.error(request, "Cargo no permitido.")
+            return redirect("usuariore")
+
+        if (
+            nuevo_cargo == "ADMIN"
+            and (usuario.cargo or "").strip().upper() != "ADMIN"
+            and _conteo_admins() >= MAX_ADMINISTRADORES
+        ):
+            messages.error(request, "Solo se permiten hasta 2 administradores.")
+            return redirect("usuariore")
+
+        if nuevo_cargo in CARGOS_MESA_CERO:
+            usuario.mesa = "0"
+        else:
+            if not mesa_recibida.isdigit() or int(mesa_recibida) <= 0:
+                messages.error(request, "La mesa debe ser un numero mayor a 0.")
+                return redirect("usuariore")
+            if not Mesa.objects.filter(nombre=mesa_recibida).exists():
+                messages.error(request, "La mesa seleccionada no existe.")
+                return redirect("usuariore")
+            usuario.mesa = mesa_recibida
+
+        usuario.cargo = nuevo_cargo
 
         nuevo_username = (request.POST.get("username") or "").strip()
         if not nuevo_username:

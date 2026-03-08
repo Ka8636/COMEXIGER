@@ -24,6 +24,32 @@
         </div>
 
         <div class="card-body">
+            <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="filtroFechaDisponibilidad" class="form-label fw-bold mb-1">Fecha</label>
+                    <input type="date" id="filtroFechaDisponibilidad" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label for="filtroMesaDisponibilidad" class="form-label fw-bold mb-1">Mesa</label>
+                    <select id="filtroMesaDisponibilidad" class="form-select">
+                        <option value="">-- Todas --</option>
+                        {% for mesa in mesas_disponibles %}
+                        <option value="{{ mesa }}">{{ mesa }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-primary" id="btnAplicarFiltrosDisponibilidad">
+                        <i class="fa fa-filter"></i> Filtrar
+                    </button>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="button" class="btn btn-outline-secondary" id="btnLimpiarFiltrosDisponibilidad">
+                        <i class="fa fa-eraser"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table id="tabla_matriz" class="table table-bordered table-hover align-middle text-center mb-0">
                     <thead class="table-dark">
@@ -528,6 +554,31 @@ function cargarMatriz(url="/api/disponibilidades/") {
     .catch(err => console.error("❌ Error carga matriz disponibilidad:", err));
 }
 
+function construirUrlDisponibilidadConFiltros() {
+  const fecha = (document.getElementById("filtroFechaDisponibilidad")?.value || "").trim();
+  const mesaRaw = (document.getElementById("filtroMesaDisponibilidad")?.value || "").trim();
+
+  let url = "/api/disponibilidades/?";
+  if (fecha) url += `fecha=${encodeURIComponent(fecha)}&`;
+
+  if (mesaRaw) url += `mesa=${encodeURIComponent(mesaRaw)}&`;
+  return url;
+}
+
+function aplicarFiltrosDisponibilidad() {
+  const url = construirUrlDisponibilidadConFiltros();
+  if (!url) return;
+  recargarTodoLimpio(url);
+}
+
+function limpiarFiltrosDisponibilidad() {
+  const inputFecha = document.getElementById("filtroFechaDisponibilidad");
+  const inputMesa = document.getElementById("filtroMesaDisponibilidad");
+  if (inputFecha) inputFecha.value = "";
+  if (inputMesa) inputMesa.value = "";
+  recargarTodoLimpio("/api/disponibilidades/");
+}
+
 
 function abrirModalEdicionDesdeCelda(td) {
   const variedad = td.dataset.variedad || "";
@@ -722,7 +773,7 @@ function parseExcelResponse(resp) {
   return { creadas, existentes, total, creadasRaw, existentesRaw };
 }
 
-async function recargarTodoLimpio() {
+async function recargarTodoLimpio(urlMatriz = "/api/disponibilidades/") {
   if (dataTable !== null && $.fn.DataTable.isDataTable('#tabla_matriz')) {
     dataTable.destroy();
     dataTable = null;
@@ -734,7 +785,7 @@ async function recargarTodoLimpio() {
   document.getElementById("tbody_matriz").innerHTML = "";
 
   await cargarVariedadesBD();
-  await cargarMatriz();
+  await cargarMatriz(urlMatriz);
 }
 
 /* Subida Excel (manual o automática) */
@@ -833,8 +884,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // refrescar
   document.getElementById("btnRefrescar").addEventListener("click", () => {
-    recargarTodoLimpio();
+    aplicarFiltrosDisponibilidad();
   });
+
+  const btnAplicarFiltrosDisponibilidad = document.getElementById("btnAplicarFiltrosDisponibilidad");
+  const btnLimpiarFiltrosDisponibilidad = document.getElementById("btnLimpiarFiltrosDisponibilidad");
+  if (btnAplicarFiltrosDisponibilidad) {
+    btnAplicarFiltrosDisponibilidad.addEventListener("click", aplicarFiltrosDisponibilidad);
+  }
+  if (btnLimpiarFiltrosDisponibilidad) {
+    btnLimpiarFiltrosDisponibilidad.addEventListener("click", limpiarFiltrosDisponibilidad);
+  }
 
   // agregar variedad
   document.getElementById("btnGuardarVariedad").addEventListener("click", async () => {

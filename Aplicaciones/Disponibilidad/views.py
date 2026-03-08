@@ -30,7 +30,7 @@ from django.db.models.deletion import ProtectedError
 
 
 from Aplicaciones.Usuario.web_decorators import web_admin_required
-from Aplicaciones.Usuario.models import Usuario
+from Aplicaciones.Usuario.models import Mesa, Usuario
 
 
 def _to_positive_int(value):
@@ -66,8 +66,17 @@ def _resolver_mesa_para_creacion(request, variedad, medida, mesa_raw):
 @web_admin_required
 def inicio(request):
     disponibilidades = Disponibilidad.objects.all()
+    mesas_disponibles = sorted(
+        {
+            str(m).strip()
+            for m in Mesa.objects.values_list("nombre", flat=True)
+            if str(m).strip()
+        },
+        key=lambda x: (0, int(x)) if x.isdigit() else (1, x.lower()),
+    )
     return render(request, 'disponibilidad.html', {
-        'disponibilidades': disponibilidades
+        'disponibilidades': disponibilidades,
+        'mesas_disponibles': mesas_disponibles,
     })
 
 
@@ -181,11 +190,19 @@ def api_disponibilidad_list(request):
     if request.method == 'GET':
         ordenar = request.query_params.get("ordenar")
         fecha = request.query_params.get("fecha")
+        mesa = request.query_params.get("mesa")
         desde = request.query_params.get("desde")
         hasta = request.query_params.get("hasta")
         reciente = request.query_params.get("reciente")
         
         qs = Disponibilidad.objects.all()
+
+        if mesa:
+            mesa_int = _to_positive_int(mesa)
+            if mesa_int is None:
+                qs = qs.none()
+            else:
+                qs = qs.filter(numero_mesa=mesa_int)
         
         if fecha:
             qs = qs.filter(fecha_entrada__date=fecha)

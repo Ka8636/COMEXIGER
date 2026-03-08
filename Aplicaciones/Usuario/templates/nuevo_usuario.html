@@ -112,6 +112,10 @@
     color: var(--muted) !important;
     font-size: .85rem;
   }
+  #adminLimitHint{
+    color: var(--danger) !important;
+    font-weight: 700;
+  }
 
   /* ====== VALIDACIÓN ====== */
   .invalid-feedback{
@@ -237,7 +241,8 @@
     <div class="card-body">
       <hr class="soft-hr mb-4">
 
-      <form action="{% url 'guardar_usuario' %}" method="post" id="form_usuario" autocomplete="off" novalidate>
+      <form action="{% url 'guardar_usuario' %}" method="post" id="form_usuario" autocomplete="off" novalidate
+            data-admin-count="{{ admin_count }}" data-max-admins="{{ max_administradores }}">
         {% csrf_token %}
 
         <div class="row g-3">
@@ -269,7 +274,7 @@
               </select>
             </div>
             <small id="mesaAutoHint" class="help-text d-block mt-2 d-none">
-              Para este cargo se asigna automaticamente la mesa 0 (ADMIN/EMPADOR/CONTROL).
+              Para este cargo se asigna automaticamente la mesa 0 (ADMIN/EMPACADOR/CONTROL).
             </small>
           </div>
 
@@ -282,10 +287,13 @@
                 <option value="ADMIN">ADMIN</option>
                 <option value="EMBONCHADOR/A">EMBONCHADOR/A</option>
                 <option value="CLASIFICADOR/A">CLASIFICADOR/A</option>
-                <option value="EMPADOR">EMPADOR</option>
+                <option value="EMPACADOR">EMPACADOR</option>
                 <option value="CONTROL">CONTROL</option>
               </select>
             </div>
+            <small id="adminLimitHint" class="help-text d-block mt-2 text-danger d-none">
+              Solo se permiten hasta 2 administradores.
+            </small>
           </div>
 
           <div class="col-md-12">
@@ -317,7 +325,7 @@
         </div>
 
         <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mt-4">
-          <button class="btn btn-success px-4 py-2" type="submit">
+          <button class="btn btn-success px-4 py-2" type="submit" id="btnGuardarUsuario">
             <i class="fa fa-save me-2"></i>Guardar
           </button>
           <a class="btn btn-outline-danger px-4 py-2" href="{% url 'usuariore' %}">
@@ -399,8 +407,12 @@ $(function () {
     return this.optional(element) || /^\d+$/.test(value);
   }, "Solo se permiten números.");
 
-  const CARGOS_PERMITIDOS = ["ADMIN", "EMBONCHADOR/A", "CLASIFICADOR/A", "EMPADOR", "CONTROL"];
-  const CARGOS_MESA_CERO = new Set(["ADMIN", "EMPADOR", "EMPACADOR", "CONTROL"]);
+  const CARGOS_PERMITIDOS = ["ADMIN", "EMBONCHADOR/A", "CLASIFICADOR/A", "EMPACADOR", "CONTROL"];
+  const CARGOS_MESA_CERO = new Set(["ADMIN", "EMPACADOR", "CONTROL"]);
+  const $formUsuario = $("#form_usuario");
+  const ADMIN_COUNT = parseInt($formUsuario.data("admin-count"), 10) || 0;
+  const MAX_ADMINISTRADORES = parseInt($formUsuario.data("max-admins"), 10) || 2;
+  const HAY_CUPO_ADMIN = ADMIN_COUNT < MAX_ADMINISTRADORES;
 
   function asegurarMesaCeroOption() {
     const $mesa = $("#mesa");
@@ -423,6 +435,13 @@ $(function () {
       $hint.addClass("d-none");
       if ($mesa.val() === "0") $mesa.val("");
     }
+  }
+
+  function aplicarReglaCupoAdmin() {
+    const cargo = ($("#cargo").val() || "").trim().toUpperCase();
+    const sinCupoAdmin = cargo === "ADMIN" && !HAY_CUPO_ADMIN;
+    $("#adminLimitHint").toggleClass("d-none", !sinCupoAdmin);
+    $("#btnGuardarUsuario").prop("disabled", sinCupoAdmin);
   }
 
   $.validator.addMethod("cargoPermitido", function(value, element) {
@@ -478,7 +497,7 @@ $(function () {
       },
       mesa: {
         required: "Por favor seleccione la mesa.",
-        mesaSegunCargo: "La mesa debe ser mayor a 0, excepto ADMIN/EMPADOR/CONTROL (mesa 0)."
+        mesaSegunCargo: "La mesa debe ser mayor a 0, excepto ADMIN/EMPACADOR/CONTROL (mesa 0)."
       },
       cargo: {
         required: "Por favor ingrese el cargo.",
@@ -510,11 +529,13 @@ $(function () {
   // ====== VALIDACIÓN MODAL MESA ======
   $("#cargo").on("change", function () {
     aplicarReglaCargoMesa();
+    aplicarReglaCupoAdmin();
     $("#cargo").valid();
     $("#mesa").valid();
   });
 
   aplicarReglaCargoMesa();
+  aplicarReglaCupoAdmin();
 
   $('#form_mesa').validate({
     ignore: [],

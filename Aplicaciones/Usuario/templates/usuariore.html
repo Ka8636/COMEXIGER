@@ -62,7 +62,16 @@
       <p class="text-muted mb-0">Administración de usuarios del sistema</p>
     </div>
     
-    <div class="d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <div class="d-flex align-items-center gap-2">
+        <label for="filter_mesa" class="fw-semibold text-dark mb-0">Mesa</label>
+        <select id="filter_mesa" class="form-select form-select-sm" style="min-width: 150px;">
+          <option value="">Todas</option>
+          {% for m in mesas %}
+          <option value="{{ m.nombre }}">{{ m.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <span class="badge bg-primary-subtle text-primary fs-6 fw-normal px-3 py-2">
         <i class="fas fa-users me-2"></i>{{ usuario|length }} usuarios
       </span>
@@ -396,7 +405,7 @@ $(function () {
     responsive: true,
 
   
-    dom: '<"row"<"col-sm-12 col-md-4"l><"col-sm-12 col-md-4 text-md-center"f><"col-sm-12 col-md-4 d-flex justify-content-md-end"B>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6 d-flex justify-content-md-end"B>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
 
     buttons: [
       {
@@ -433,6 +442,19 @@ $(function () {
     columnDefs: [
       { orderable: false, targets: [6] }
     ]
+  });
+
+  let mesaFiltro = "";
+  $.fn.dataTable.ext.search.push(function(settings, data) {
+    if (settings.nTable.id !== "table_usuarios") return true;
+    if (!mesaFiltro) return true;
+    const mesaFila = $("<div>").html(data[3] || "").text().replace(/\s+/g, " ").trim();
+    return mesaFila === mesaFiltro;
+  });
+
+  $("#filter_mesa").on("change", function() {
+    mesaFiltro = ($(this).val() || "").trim();
+    tabla.draw();
   });
 
  

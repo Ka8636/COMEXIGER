@@ -19,6 +19,7 @@ from rest_framework.response import Response
 
 
 from Aplicaciones.Usuario.web_decorators import web_admin_required
+from Aplicaciones.Usuario.models import Mesa
 
 
 def _mesa_sort_key(item):
@@ -35,7 +36,22 @@ def _mesa_sort_key(item):
 @web_admin_required
 def inicio(request):
     listadoRendimiento = Rendimiento.objects.filter(qr_id="JORNADA").order_by('-fecha_entrada')
-    return render(request, 'rendimiento.html', {'rendimiento': listadoRendimiento})
+    mesas_disponibles = sorted(
+        {
+            str(m).strip()
+            for m in Mesa.objects.values_list("nombre", flat=True)
+            if str(m).strip()
+        },
+        key=lambda x: (0, int(x)) if x.isdigit() else (1, x.lower()),
+    )
+    return render(
+        request,
+        'rendimiento.html',
+        {
+            'rendimiento': listadoRendimiento,
+            'mesas_disponibles': mesas_disponibles,
+        }
+    )
 
 @web_admin_required
 def nuevo_rendimiento(request):
@@ -197,6 +213,10 @@ def api_rendimiento_list(request):
     # ---------- GET ----------
     if request.method == 'GET':
         rendimientos = Rendimiento.objects.filter(qr_id="JORNADA")
+
+        mesa = (request.query_params.get("mesa") or "").strip()
+        if mesa:
+            rendimientos = rendimientos.filter(numero_mesa=mesa)
 
         if request.query_params.get("fecha"):
             rendimientos = rendimientos.filter(

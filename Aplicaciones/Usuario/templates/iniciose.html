@@ -136,9 +136,12 @@
             background: transparent;
             cursor: pointer;
             color: var(--text-color);
-            font-size: 12px;
-            font-weight: 700;
-            line-height: 1;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
             padding: 0;
         }
 
@@ -177,7 +180,7 @@
             <label for="contrasena">CONTRASE&Ntilde;A:</label>
             <div class="password-wrap">
                 <input type="password" id="contrasena" name="contrasena" required>
-                <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contrasena" title="Mostrar contrasena">VER</button>
+                <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contrasena" title="Mostrar contrasena"></button>
             </div>
 
             <button type="submit" class="btn">CONTINUAR</button>
@@ -224,10 +227,14 @@
             const btn = document.getElementById("togglePass");
             if (!input || !btn) return;
 
+            const iconoVer = "<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z'></path><circle cx='12' cy='12' r='3'></circle></svg>";
+            const iconoOcultar = "<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a21.77 21.77 0 0 1 5.06-7.94'></path><path d='M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.77 21.77 0 0 1-3.17 4.66'></path><path d='M14.12 14.12a3 3 0 1 1-4.24-4.24'></path><line x1='1' y1='1' x2='23' y2='23'></line></svg>";
+            btn.innerHTML = iconoVer;
+
             btn.addEventListener("click", function () {
                 const mostrando = input.type === "text";
                 input.type = mostrando ? "password" : "text";
-                btn.textContent = mostrando ? "VER" : "OCULTAR";
+                btn.innerHTML = mostrando ? iconoVer : iconoOcultar;
                 btn.setAttribute("aria-label", mostrando ? "Mostrar contrasena" : "Ocultar contrasena");
                 btn.setAttribute("title", mostrando ? "Mostrar contrasena" : "Ocultar contrasena");
             });
