@@ -9,26 +9,9 @@
     <div class="row g-3">
 
       <div class="col-md-3">
-        <label class="form-label fw-bold">Ordenar por</label>
-        <select id="ordenarPor" class="form-select">
-          <option value="">-- Seleccionar --</option>
-          <option value="mesa">Mesa</option>
-          <option value="fecha">Fecha</option>
-        </select>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label fw-bold">Mostrar</label>
-        <select id="ordenReciente" class="form-select">
-          <option value="">-- Seleccionar --</option>
-          <option value="true">Más recientes primero</option>
-          <option value="false">Más antiguos primero</option>
-        </select>
-      </div>
-
-      <div class="col-md-3">
         <label class="form-label fw-bold">Fecha exacta</label>
         <input type="date" id="fechaExacta" class="form-control">
+        <small class="text-muted">Selecciona una fecha para filtrar (deja vacío para ver todas).</small>
       </div>
 
       <div class="col-md-3">
@@ -39,16 +22,6 @@
           <option value="{{ mesa }}">{{ mesa }}</option>
           {% endfor %}
         </select>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label fw-bold">Desde</label>
-        <input type="date" id="fechaDesde" class="form-control">
-      </div>
-
-      <div class="col-md-3 mt-3">
-        <label class="form-label fw-bold">Hasta</label>
-        <input type="date" id="fechaHasta" class="form-control">
       </div>
 
       <div class="col-md-3 mt-4">
@@ -522,12 +495,20 @@
     // FILTROS (GET correcto)
     // =======================
     document.getElementById("btnAplicarFiltros").addEventListener("click", function () {
-      let ordenar = document.getElementById("ordenarPor").value;
-      let reciente = document.getElementById("ordenReciente").value;
-      let fecha = document.getElementById("fechaExacta").value;
-      let mesa = (document.getElementById("filtroMesa").value || "").trim();
-      let desde = document.getElementById("fechaDesde").value;
-      let hasta = document.getElementById("fechaHasta").value;
+      // obtain elements once and guard for missing inputs
+      const ordenarEl = document.getElementById("ordenarPor");
+      const recienteEl = document.getElementById("ordenReciente");
+      const fechaEl = document.getElementById("fechaExacta");
+      const mesaEl = document.getElementById("filtroMesa");
+      const desdeEl = document.getElementById("fechaDesde");
+      const hastaEl = document.getElementById("fechaHasta");
+
+      let ordenar = ordenarEl ? ordenarEl.value : "";
+      let reciente = recienteEl ? recienteEl.value : "";
+      let fecha = fechaEl ? fechaEl.value : "";
+      let mesa = mesaEl ? (mesaEl.value || "").trim() : "";
+      let desde = desdeEl ? desdeEl.value : "";
+      let hasta = hastaEl ? hastaEl.value : "";
 
       // Si solo eligen "reciente", por defecto ordenamos por fecha.
       if (!ordenar && reciente) ordenar = "fecha";
@@ -580,12 +561,19 @@
     });
 
     document.getElementById("btnLimpiarFiltros").addEventListener("click", function () {
-      document.getElementById("ordenarPor").value = "";
-      document.getElementById("ordenReciente").value = "";
-      document.getElementById("fechaExacta").value = "";
-      document.getElementById("filtroMesa").value = "";
-      document.getElementById("fechaDesde").value = "";
-      document.getElementById("fechaHasta").value = "";
+      const ordenarEl = document.getElementById("ordenarPor");
+      const recienteEl = document.getElementById("ordenReciente");
+      const fechaEl = document.getElementById("fechaExacta");
+      const mesaEl = document.getElementById("filtroMesa");
+      const desdeEl = document.getElementById("fechaDesde");
+      const hastaEl = document.getElementById("fechaHasta");
+
+      if (ordenarEl) ordenarEl.value = "";
+      if (recienteEl) recienteEl.value = "";
+      if (fechaEl) fechaEl.value = "";
+      if (mesaEl) mesaEl.value = "";
+      if (desdeEl) desdeEl.value = "";
+      if (hastaEl) hastaEl.value = "";
 
       fetch("/api/rendimientos/")
         .then(r => r.json())
