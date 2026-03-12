@@ -10,7 +10,7 @@
 
       <div class="col-md-3">
         <label class="form-label fw-bold">Fecha exacta</label>
-        <input type="date" id="fechaExacta" class="form-control">
+        <input type="date" id="fechaExacta" class="form-control" min="2024-01-01">
         <small class="text-muted">Selecciona una fecha para filtrar (deja vacío para ver todas).</small>
       </div>
 
@@ -267,6 +267,19 @@
   let table;
 
   $(document).ready(function() {
+
+    // configurar límites de fecha para filtros y edición (min 2024-01-01, max hoy)
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaExacta = document.getElementById("fechaExacta");
+    if (fechaExacta) {
+      fechaExacta.min = "2024-01-01";
+      fechaExacta.max = hoy;
+    }
+    const editFecha = document.getElementById("edit_fecha");
+    if (editFecha) {
+      editFecha.min = "2024-01-01";
+      editFecha.max = hoy;
+    }
 
     // =======================
     // DATATABLE

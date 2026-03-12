@@ -27,7 +27,7 @@
             <div class="row g-2 mb-3 align-items-end">
                 <div class="col-md-3">
                     <label for="filtroFechaDisponibilidad" class="form-label fw-bold mb-1">Fecha</label>
-                    <input type="date" id="filtroFechaDisponibilidad" class="form-control">
+                    <input type="date" id="filtroFechaDisponibilidad" class="form-control" min="2024-01-01">
                     <small class="text-muted">Selecciona la fecha deseada (o deja vacío para todas).</small>
                 </div>
                 <div class="col-md-3">
@@ -857,6 +857,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const formEditar = document.getElementById("formEditarCelda");
   const inputStock = document.getElementById("edit_stock");
+  // configurar límites de fecha del filtro (min = 2024-01-01, max = hoy)
+  const filtroFechaDisponibilidad = document.getElementById("filtroFechaDisponibilidad");
+  if (filtroFechaDisponibilidad) {
+    filtroFechaDisponibilidad.max = new Date().toISOString().split('T')[0];
+    filtroFechaDisponibilidad.min = "2024-01-01";
+  }
+
   if (formEditar && inputStock) {
     formEditar.addEventListener("submit", function (e) {
       const raw = String(inputStock.value ?? "").trim();
@@ -891,7 +898,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnAplicarFiltrosDisponibilidad = document.getElementById("btnAplicarFiltrosDisponibilidad");
   const btnLimpiarFiltrosDisponibilidad = document.getElementById("btnLimpiarFiltrosDisponibilidad");
   if (btnAplicarFiltrosDisponibilidad) {
-    btnAplicarFiltrosDisponibilidad.addEventListener("click", aplicarFiltrosDisponibilidad);
+    btnAplicarFiltrosDisponibilidad.addEventListener("click", () => {
+      // validar fecha antes de aplicar
+      const fecha = filtroFechaDisponibilidad ? filtroFechaDisponibilidad.value : "";
+      if (fecha) {
+        const f = new Date(fecha);
+        const min = new Date("2024-01-01");
+        const max = new Date();
+        if (f < min || f > max) {
+          alertaError("La fecha debe estar entre 2024-01-01 y hoy.");
+          return;
+        }
+      }
+      aplicarFiltrosDisponibilidad();
+    });
   }
   if (btnLimpiarFiltrosDisponibilidad) {
     btnLimpiarFiltrosDisponibilidad.addEventListener("click", limpiarFiltrosDisponibilidad);
