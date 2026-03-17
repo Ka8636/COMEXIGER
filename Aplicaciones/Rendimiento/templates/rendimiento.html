@@ -10,7 +10,7 @@
 
       <div class="col-md-3">
         <label class="form-label fw-bold">Fecha exacta</label>
-        <input type="date" id="fechaExacta" class="form-control" min="2024-01-01">
+        <input type="date" id="fechaExacta" class="form-control" min="2026-03-06">
         <small class="text-muted">Selecciona una fecha para filtrar (deja vacío para ver todas).</small>
       </div>
 
@@ -272,12 +272,12 @@
     const hoy = new Date().toISOString().split('T')[0];
     const fechaExacta = document.getElementById("fechaExacta");
     if (fechaExacta) {
-      fechaExacta.min = "2024-01-01";
+      fechaExacta.min = "2026-03-06";
       fechaExacta.max = hoy;
     }
     const editFecha = document.getElementById("edit_fecha");
     if (editFecha) {
-      editFecha.min = "2024-01-01";
+      editFecha.min = "2026-03-06";
       editFecha.max = hoy;
     }
 

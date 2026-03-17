@@ -107,13 +107,22 @@ def procesar_edicion_disponibilidad(request):
             if stock < 0:
                 raise ValueError("El stock no puede ser menor a 0.")
 
+            fecha_entrada_raw = (request.POST.get("fecha_entrada") or "").strip()
+            fecha_entrada_date = None
+            if fecha_entrada_raw:
+                try:
+                    f = fecha_entrada_raw
+                    # support "Z" timezone suffix from ISO strings
+                    if f.endswith("Z"):
+                        f = f[:-1] + "+00:00"
+                    fecha_entrada_date = datetime.fromisoformat(f).date()
+                except Exception:
+                    fecha_entrada_date = None
+
+            is_new = False
             if _id:
                 d = Disponibilidad.objects.get(id=_id)  # edita
                 d.stock = stock
-
-                d.save()
-
-                msg = "Disponibilidad actualizada correctamente"
             else:
                 variedad = (request.POST.get("variedad") or "").strip()
                 medida = (request.POST.get("medida") or "").strip()
@@ -124,16 +133,40 @@ def procesar_edicion_disponibilidad(request):
 
                 mesa = _resolver_mesa_para_creacion(request, variedad, medida, mesa_raw)
 
-                # crea un registro nuevo (editar el 0)
-                d = Disponibilidad.objects.create(
+                # intenta reutilizar un registro existente para evitar crear duplicados
+                qs = Disponibilidad.objects.filter(
                     numero_mesa=mesa,
                     variedad=variedad,
                     medida=medida,
-                    stock=stock,
-                    fecha_entrada=timezone.now(),
                 )
+                if fecha_entrada_date:
+                    qs = qs.filter(fecha_entrada__date=fecha_entrada_date)
+                else:
+                    qs = qs.filter(fecha_entrada__date=timezone.localdate())
 
-                msg = "Disponibilidad creada correctamente"
+                existing = qs.order_by("-fecha_entrada", "-id").first()
+                if existing:
+                    d = existing
+                    d.stock = stock
+                else:
+                    is_new = True
+                    d = Disponibilidad(
+                        numero_mesa=mesa,
+                        variedad=variedad,
+                        medida=medida,
+                        stock=stock,
+                        fecha_entrada=timezone.now(),
+                    )
+
+            # Si se llega a 0, marcamos la salida (o limpiamos si vuelve a tener stock)
+            if stock == 0:
+                d.fecha_salida = timezone.now()
+            else:
+                d.fecha_salida = None
+
+            d.save()
+
+            msg = "Disponibilidad creada correctamente" if is_new else "Disponibilidad actualizada correctamente"
 
             # ==========================
             #  WEBSOCKET igual que antes
@@ -194,7 +227,38 @@ def api_disponibilidad_list(request):
         desde = request.query_params.get("desde")
         hasta = request.query_params.get("hasta")
         reciente = request.query_params.get("reciente")
-        
+
+        # Validación de fechas (solo desde 2026-03-06 en adelante)
+        MIN_DATE = datetime(2026, 3, 6).date()
+        hoy = timezone.localdate()
+
+        def _parse_fecha(fecha_str):
+            try:
+                return datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            except Exception:
+                return None
+
+        if fecha:
+            fecha_dt = _parse_fecha(fecha)
+            if not fecha_dt:
+                return Response({"error": "Fecha inválida."}, status=400)
+            if fecha_dt < MIN_DATE or fecha_dt > hoy:
+                return Response({"error": f"La fecha debe ser entre {MIN_DATE} y {hoy}."}, status=400)
+
+        if desde:
+            desde_dt = _parse_fecha(desde)
+            if not desde_dt:
+                return Response({"error": "Fecha 'desde' inválida."}, status=400)
+            if desde_dt < MIN_DATE or desde_dt > hoy:
+                return Response({"error": f"La fecha 'desde' debe ser entre {MIN_DATE} y {hoy}."}, status=400)
+
+        if hasta:
+            hasta_dt = _parse_fecha(hasta)
+            if not hasta_dt:
+                return Response({"error": "Fecha 'hasta' inválida."}, status=400)
+            if hasta_dt < MIN_DATE or hasta_dt > hoy:
+                return Response({"error": f"La fecha 'hasta' debe ser entre {MIN_DATE} y {hoy}."}, status=400)
+
         qs = Disponibilidad.objects.all()
 
         if mesa:
@@ -349,22 +413,47 @@ from .models import Disponibilidad, QRDisponibilidadSalidaUsado
 @permission_classes([IsAuthenticated])
 def api_disponibilidad_salida(request):
     data = request.data
-    codigo = data.get("qr_id")
+    codigo = (data.get("qr_id") or "").strip()
     mesa = data.get("numero_mesa")
-    variedad = data.get("variedad")
-    medida = data.get("medida")
+    variedad = (data.get("variedad") or "").strip()
+    medida = (data.get("medida") or "").strip()
 
-    if not codigo or mesa is None or not variedad or not medida:
+    mesa_int = _to_positive_int(mesa)
+
+    if not codigo or mesa_int is None or not variedad or not medida:
         return Response(
             {"error": "Datos incompletos: qr_id, numero_mesa, variedad y medida son obligatorios"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    # Normalizar para evitar problemas de mayúsculas/minúsculas
+    variedad_norm = variedad.strip()
+    medida_norm = medida.strip()
+
+    base_qs = Disponibilidad.objects.filter(
+        numero_mesa=mesa_int,
+        variedad__iexact=variedad_norm,
+        medida__iexact=medida_norm,
+    )
+
+    if not base_qs.exists():
+        return Response(
+            {"error": "No existe registro de disponibilidad para esa combinación de mesa/variedad/medida."},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
     #  Si ya se restó este QR una vez, NO permitir otra vez
     if QRDisponibilidadSalidaUsado.objects.filter(qr_id=codigo).exists():
         return Response(
             {"error": "Este QR ya fue utilizado en SALIDA (ya se restó una vez)"},
+            status=status.HTTP_409_CONFLICT
+        )
+
+    # Si hay registros con stock > 0, usaremos el más antiguo (FIFO).
+    # No dependemos de fecha_salida: si hay stock y está cerrada, la reabrimos.
+    if not base_qs.filter(stock__gt=0).exists():
+        return Response(
+            {"error": "No hay stock disponible para esa variedad y medida"},
             status=status.HTTP_409_CONFLICT
         )
 
@@ -374,15 +463,18 @@ def api_disponibilidad_salida(request):
         dispo = (Disponibilidad.objects
                  .select_for_update()
                  .filter(
-                    numero_mesa=mesa,
-                    fecha_salida__isnull=True,
-                    variedad=variedad,
-                    medida=medida,
+                    numero_mesa=mesa_int,
+                    variedad__iexact=variedad_norm,
+                    medida__iexact=medida_norm,
                     stock__gt=0
                 )
-
                  .order_by('fecha_entrada', 'id')
                  .first())
+
+        # Si el registro estaba cerrado, lo reabrimos antes de descontar.
+        if dispo and dispo.fecha_salida is not None:
+            dispo.fecha_salida = None
+            dispo.save()
 
         if not dispo:
             return Response(

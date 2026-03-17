@@ -214,29 +214,64 @@ def api_rendimiento_list(request):
     if request.method == 'GET':
         rendimientos = Rendimiento.objects.filter(qr_id="JORNADA")
 
+        # Validar fechas (solo a partir del 2026-03-06)
+        MIN_DATE = datetime(2026, 3, 6).date()
+        hoy = timezone.localdate()
+
+        def _parse_fecha(fecha_str):
+            try:
+                return datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            except Exception:
+                return None
+
+        fecha = request.query_params.get("fecha")
+        desde = request.query_params.get("desde")
+        hasta = request.query_params.get("hasta")
+
+        if fecha:
+            fecha_dt = _parse_fecha(fecha)
+            if not fecha_dt:
+                return Response({"error": "Fecha inválida."}, status=400)
+            if fecha_dt < MIN_DATE or fecha_dt > hoy:
+                return Response({"error": f"La fecha debe estar entre {MIN_DATE} y {hoy}."}, status=400)
+
+        if desde:
+            desde_dt = _parse_fecha(desde)
+            if not desde_dt:
+                return Response({"error": "Fecha 'desde' inválida."}, status=400)
+            if desde_dt < MIN_DATE or desde_dt > hoy:
+                return Response({"error": f"La fecha 'desde' debe estar entre {MIN_DATE} y {hoy}."}, status=400)
+
+        if hasta:
+            hasta_dt = _parse_fecha(hasta)
+            if not hasta_dt:
+                return Response({"error": "Fecha 'hasta' inválida."}, status=400)
+            if hasta_dt < MIN_DATE or hasta_dt > hoy:
+                return Response({"error": f"La fecha 'hasta' debe estar entre {MIN_DATE} y {hoy}."}, status=400)
+
         mesa = (request.query_params.get("mesa") or "").strip()
         if mesa:
             rendimientos = rendimientos.filter(numero_mesa=mesa)
 
-        if request.query_params.get("fecha"):
+        if fecha:
             rendimientos = rendimientos.filter(
-                fecha_entrada__date=request.query_params["fecha"]
+                fecha_entrada__date=fecha
             )
 
-        if request.query_params.get("desde") and request.query_params.get("hasta"):
+        if desde and hasta:
             rendimientos = rendimientos.filter(
                 fecha_entrada__date__range=[
-                    request.query_params["desde"],
-                    request.query_params["hasta"]
+                    desde,
+                    hasta
                 ]
             )
-        elif request.query_params.get("desde"):
+        elif desde:
             rendimientos = rendimientos.filter(
-                fecha_entrada__date__gte=request.query_params["desde"]
+                fecha_entrada__date__gte=desde
             )
-        elif request.query_params.get("hasta"):
+        elif hasta:
             rendimientos = rendimientos.filter(
-                fecha_entrada__date__lte=request.query_params["hasta"]
+                fecha_entrada__date__lte=hasta
             )
 
         ordenar = request.query_params.get("ordenar")

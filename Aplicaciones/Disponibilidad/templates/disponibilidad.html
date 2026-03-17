@@ -28,7 +28,7 @@
                 <div class="col-md-3">
                     <label for="filtroFechaDisponibilidad" class="form-label fw-bold mb-1">Fecha</label>
                     <small class="text-muted">Selecciona la fecha deseada (o deja vacío para todas).</small>
-                    <input type="date" id="filtroFechaDisponibilidad" class="form-control" min="2024-01-01">
+                    <input type="date" id="filtroFechaDisponibilidad" class="form-control" min="2026-03-06">
                 </div>
                 <div class="col-md-3">
                     <label for="filtroMesaDisponibilidad" class="form-label fw-bold mb-1">Mesa</label>
@@ -109,6 +109,7 @@
                   <input type="hidden" name="numero_mesa" id="edit_mesa">
                   <input type="hidden" name="variedad" id="edit_variedad">
                   <input type="hidden" name="medida" id="edit_medida">
+                  <input type="hidden" name="fecha_entrada" id="edit_fecha_entrada">
 
                   <div class="mb-3">
                       <label class="fw-bold">Stock</label>
@@ -122,6 +123,9 @@
                       >
                   </div>
                   <div class="text-end mt-4">
+                      <button type="button" id="btnEliminarDisponibilidad" class="btn btn-outline-danger me-2" style="display:none;">
+                          <i class="fa fa-trash"></i> Eliminar
+                      </button>
                       <button type="submit" class="btn btn-success px-4">
                           <i class="fa fa-save"></i> Guardar stock
                       </button>
@@ -595,7 +599,15 @@ function abrirModalEdicionDesdeCelda(td) {
   document.getElementById("edit_mesa").value = mesa;
   document.getElementById("edit_variedad").value = variedad;
   document.getElementById("edit_medida").value = medida;
+  document.getElementById("edit_fecha_entrada").value = td.dataset.fecha_entrada || "";
   document.getElementById("edit_stock").value = stock;
+
+  const deleteBtn = document.getElementById("btnEliminarDisponibilidad");
+  if (deleteBtn) {
+    const shouldShowDelete = idRegistro && Number(stock) === 0;
+    deleteBtn.style.display = shouldShowDelete ? "inline-block" : "none";
+    deleteBtn.dataset.id = idRegistro || "";
+  }
 
   const modal = new bootstrap.Modal(document.getElementById("modalEditarCelda"));
   modal.show();
@@ -888,6 +900,35 @@ document.addEventListener("DOMContentLoaded", () => {
         inputStock.focus();
       }
     });
+
+    const btnEliminar = document.getElementById("btnEliminarDisponibilidad");
+    if (btnEliminar) {
+      btnEliminar.addEventListener("click", async () => {
+        const id = btnEliminar.dataset.id;
+        if (!id) return;
+
+        if (!confirm("¿Eliminar esta disponibilidad?")) return;
+
+        try {
+          const res = await fetch(`/eliminar_disponibilidad/${id}`, {
+            method: "GET",
+            credentials: "same-origin",
+          });
+
+          if (!res.ok) throw new Error("No se pudo eliminar");
+
+          alertaExito("Disponibilidad eliminada correctamente.");
+          recargarTodoLimpio();
+
+          const modalEl = document.getElementById("modalEditarCelda");
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          if (modal) modal.hide();
+        } catch (err) {
+          console.error(err);
+          alertaError("No se pudo eliminar la disponibilidad.");
+        }
+      });
+    }
   }
 
   // refrescar
@@ -903,10 +944,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const fecha = filtroFechaDisponibilidad ? filtroFechaDisponibilidad.value : "";
       if (fecha) {
         const f = new Date(fecha);
-        const min = new Date("2024-01-01");
+        const min = new Date("2026-03-06");
         const max = new Date();
         if (f < min || f > max) {
-          alertaError("La fecha debe estar entre 2024-01-01 y hoy.");
+          alertaError(`La fecha debe estar entre 2026-03-06 y hoy.`);
           return;
         }
       }
